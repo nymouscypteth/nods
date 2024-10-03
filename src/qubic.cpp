@@ -849,22 +849,22 @@ static void processBroadcastTransaction(Peer* peer, RequestResponseHeader* heade
                 && ts.tickData[tickIndex].epoch == system.epoch)
             {
                 KangarooTwelve(request, transactionSize, digest, sizeof(digest));
-                auto* tsReqTickTransactionOffsets = ts.tickTransactionOffsets.getByTickIndex(tickIndex);
+                auto* tsReqTickTransactionOffsets = ts.transactionsStorage.tickTransactionOffsets.getByTickIndex(tickIndex);
                 for (unsigned int i = 0; i < NUMBER_OF_TRANSACTIONS_PER_TICK; i++)
                 {
                     if (digest == ts.tickData[tickIndex].transactionDigests[i])
                     {
-                        ts.tickTransactions.acquireLock();
+                        ts.transactionsStorage.tickTransactions.acquireLock();
                         if (!tsReqTickTransactionOffsets[i])
                         {
-                            if (ts.nextTickTransactionOffset + transactionSize <= ts.tickTransactions.storageSpaceCurrentEpoch)
+                            if (ts.transactionsStorage.nextTickTransactionOffset + transactionSize <= ts.transactionsStorage.tickTransactions.storageSpaceCurrentEpoch)
                             {
-                                tsReqTickTransactionOffsets[i] = ts.nextTickTransactionOffset;
-                                bs->CopyMem(ts.tickTransactions(ts.nextTickTransactionOffset), request, transactionSize);
-                                ts.nextTickTransactionOffset += transactionSize;
+                                tsReqTickTransactionOffsets[i] = ts.transactionsStorage.nextTickTransactionOffset;
+                                bs->CopyMem(ts.transactionsStorage.tickTransactions(ts.transactionsStorage.nextTickTransactionOffset), request, transactionSize);
+                                ts.transactionsStorage.nextTickTransactionOffset += transactionSize;
                             }
                         }
-                        ts.tickTransactions.releaseLock();
+                        ts.transactionsStorage.tickTransactions.releaseLock();
                         break;
                     }
                 }
@@ -957,12 +957,12 @@ static void processRequestTickTransactions(Peer* peer, RequestResponseHeader* he
     if (ts.tickInCurrentEpochStorage(request->tick))
     {
         tickEpoch = system.epoch;
-        tsReqTickTransactionOffsets = ts.tickTransactionOffsets.getByTickInCurrentEpoch(request->tick);
+        tsReqTickTransactionOffsets = ts.transactionsStorage.tickTransactionOffsets.getByTickInCurrentEpoch(request->tick);
     }
     else if (ts.tickInPreviousEpochStorage(request->tick))
     {
         tickEpoch = system.epoch - 1;
-        tsReqTickTransactionOffsets = ts.tickTransactionOffsets.getByTickInPreviousEpoch(request->tick);
+        tsReqTickTransactionOffsets = ts.transactionsStorage.tickTransactionOffsets.getByTickInPreviousEpoch(request->tick);
     }
 
     if (tickEpoch != 0)
@@ -982,7 +982,7 @@ static void processRequestTickTransactions(Peer* peer, RequestResponseHeader* he
                 unsigned long long tickTransactionOffset = tsReqTickTransactionOffsets[tickTransactionIndices[index]];
                 if (tickTransactionOffset)
                 {
-                    const Transaction* transaction = ts.tickTransactions(tickTransactionOffset);
+                    const Transaction* transaction = ts.transactionsStorage.tickTransactions(tickTransactionOffset);
                     if (transaction->tick == request->tick && transaction->checkValidity())
                     {
                         enqueueResponse(peer, transaction->totalSize(), BROADCAST_TRANSACTION, header->dejavu(), (void*)transaction);
@@ -2306,7 +2306,7 @@ static void processTick(unsigned long long processorNumber)
     unsigned long long solutionProcessStartTick = __rdtsc(); // for tracking the time processing solutions
     if (nextTickData.epoch == system.epoch)
     {
-        auto* tsCurrentTickTransactionOffsets = ts.tickTransactionOffsets.getByTickIndex(tickIndex);
+        auto* tsCurrentTickTransactionOffsets = ts.transactionsStorage.tickTransactionOffsets.getByTickIndex(tickIndex);
 #if ADDON_TX_STATUS_REQUEST
         txStatusData.tickTxIndexStart[system.tick - system.initialTick] = numberOfTransactions; // qli: part of tx_status_request add-on
 #endif
@@ -2319,7 +2319,7 @@ static void processTick(unsigned long long processorNumber)
             {
                 if (tsCurrentTickTransactionOffsets[transactionIndex])
                 {
-                    Transaction* transaction = ts.tickTransactions(tsCurrentTickTransactionOffsets[transactionIndex]);
+                    Transaction* transaction = ts.transactionsStorage.tickTransactions(tsCurrentTickTransactionOffsets[transactionIndex]);
                     ASSERT(transaction->checkValidity());
                     ASSERT(transaction->tick == system.tick);
                     const int spectrumIndex = ::spectrumIndex(transaction->sourcePublicKey);
@@ -2368,7 +2368,7 @@ static void processTick(unsigned long long processorNumber)
             {
                 if (tsCurrentTickTransactionOffsets[transactionIndex])
                 {
-                    Transaction* transaction = ts.tickTransactions(tsCurrentTickTransactionOffsets[transactionIndex]);
+                    Transaction* transaction = ts.transactionsStorage.tickTransactions(tsCurrentTickTransactionOffsets[transactionIndex]);
                     logger.registerNewTx(transaction->tick, transactionIndex);
                     processTickTransaction(transaction, nextTickData.transactionDigests[transactionIndex], processorNumber);
                 }
@@ -2469,18 +2469,18 @@ static void processTick(unsigned long long processorNumber)
                         {
                             ASSERT(pendingTransaction->checkValidity());
                             const unsigned int transactionSize = pendingTransaction->totalSize();
-                            if (ts.nextTickTransactionOffset + transactionSize <= ts.tickTransactions.storageSpaceCurrentEpoch)
+                            if (ts.transactionsStorage.nextTickTransactionOffset + transactionSize <= ts.transactionsStorage.tickTransactions.storageSpaceCurrentEpoch)
                             {
-                                ts.tickTransactions.acquireLock();
-                                if (ts.nextTickTransactionOffset + transactionSize <= ts.tickTransactions.storageSpaceCurrentEpoch)
+                                ts.transactionsStorage.tickTransactions.acquireLock();
+                                if (ts.transactionsStorage.nextTickTransactionOffset + transactionSize <= ts.transactionsStorage.tickTransactions.storageSpaceCurrentEpoch)
                                 {
-                                    ts.tickTransactionOffsets(pendingTransaction->tick, j) = ts.nextTickTransactionOffset;
-                                    bs->CopyMem(ts.tickTransactions(ts.nextTickTransactionOffset), (void*)pendingTransaction, transactionSize);
+                                    ts.transactionsStorage.tickTransactionOffsets(pendingTransaction->tick, j) = ts.transactionsStorage.nextTickTransactionOffset;
+                                    bs->CopyMem(ts.transactionsStorage.tickTransactions(ts.transactionsStorage.nextTickTransactionOffset), (void*)pendingTransaction, transactionSize);
                                     broadcastedFutureTickData.tickData.transactionDigests[j] = &computorPendingTransactionDigests[entityPendingTransactionIndices[index] * 32ULL];
                                     j++;
-                                    ts.nextTickTransactionOffset += transactionSize;
+                                    ts.transactionsStorage.nextTickTransactionOffset += transactionSize;
                                 }
-                                ts.tickTransactions.releaseLock();
+                                ts.transactionsStorage.tickTransactions.releaseLock();
                             }
                         }
 
@@ -2500,18 +2500,18 @@ static void processTick(unsigned long long processorNumber)
                         {
                             ASSERT(pendingTransaction->checkValidity());
                             const unsigned int transactionSize = pendingTransaction->totalSize();
-                            if (ts.nextTickTransactionOffset + transactionSize <= ts.tickTransactions.storageSpaceCurrentEpoch)
+                            if (ts.transactionsStorage.nextTickTransactionOffset + transactionSize <= ts.transactionsStorage.tickTransactions.storageSpaceCurrentEpoch)
                             {
-                                ts.tickTransactions.acquireLock();
-                                if (ts.nextTickTransactionOffset + transactionSize <= ts.tickTransactions.storageSpaceCurrentEpoch)
+                                ts.transactionsStorage.tickTransactions.acquireLock();
+                                if (ts.transactionsStorage.nextTickTransactionOffset + transactionSize <= ts.transactionsStorage.tickTransactions.storageSpaceCurrentEpoch)
                                 {
-                                    ts.tickTransactionOffsets(pendingTransaction->tick, j) = ts.nextTickTransactionOffset;
-                                    bs->CopyMem(ts.tickTransactions(ts.nextTickTransactionOffset), (void*)pendingTransaction, transactionSize);
+                                    ts.transactionsStorage.tickTransactionOffsets(pendingTransaction->tick, j) = ts.transactionsStorage.nextTickTransactionOffset;
+                                    bs->CopyMem(ts.transactionsStorage.tickTransactions(ts.transactionsStorage.nextTickTransactionOffset), (void*)pendingTransaction, transactionSize);
                                     broadcastedFutureTickData.tickData.transactionDigests[j] = &entityPendingTransactionDigests[entityPendingTransactionIndices[index] * 32ULL];
                                     j++;
-                                    ts.nextTickTransactionOffset += transactionSize;
+                                    ts.transactionsStorage.nextTickTransactionOffset += transactionSize;
                                 }
-                                ts.tickTransactions.releaseLock();
+                                ts.transactionsStorage.tickTransactions.releaseLock();
                             }
                         }
 
