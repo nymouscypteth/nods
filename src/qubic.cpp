@@ -2608,18 +2608,19 @@ static void beginEpoch()
 	setMem(&broadcastedComputors.computors.signature, sizeof(broadcastedComputors.computors.signature), 0);
 
 #ifndef NDEBUG
-    ts.checkStateConsistencyWithAssert();
+	ts.checkStateConsistencyWithAssert();
+	txsPool.checkStateConsistencyWithAssert();
 #endif
-    ts.beginEpoch(system.initialTick);
-    voteCounter.init();
+	ts.beginEpoch(system.initialTick);
+	txsPool.beginEpoch(system.initialTick);
+	voteCounter.init();
 #ifndef NDEBUG
-    ts.checkStateConsistencyWithAssert();
+	ts.checkStateConsistencyWithAssert();
+	txsPool.checkStateConsistencyWithAssert();
 #endif
 #if ADDON_TX_STATUS_REQUEST
     beginEpochTxStatusRequestAddOn(system.initialTick);
 #endif
-
-	txsPool.beginEpoch(system.initialTick);
 
 	setMem(solutionPublicationTicks, sizeof(solutionPublicationTicks), 0);
 	setMem(faultyComputorFlags, sizeof(faultyComputorFlags), 0);
