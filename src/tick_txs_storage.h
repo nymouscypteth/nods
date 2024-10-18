@@ -170,6 +170,11 @@ public:
         }
     }
 
+    static unsigned long long getMaxNumTxsCurrentEpoch()
+    {
+        return tickTransactionOffsetsLengthCurrentEpoch;
+    }
+
     // Begin new epoch. If not called the first time (seamless transition), assume that the ticks to keep
     // are ticks in [newInitialTick-TICKS_TO_KEEP_FROM_PRIOR_EPOCH, newInitialTick-1].
     void beginEpoch(unsigned int newInitialTick)

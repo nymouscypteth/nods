@@ -120,6 +120,13 @@ public:
 		return tick - oldTickBegin + MAX_NUMBER_OF_TICKS_PER_EPOCH;
 	}
 
+	// Return number of transactions scheduled for the specified tick.
+	static unsigned int getNumberOfTickTxs(unsigned int tick)
+	{
+		// TODO: implement this
+		return 0;
+	}
+
 	// Return number of transactions scheduled later than the specified tick.
 	static unsigned int getNumberOfPendingTxs(unsigned int tick)
 	{
