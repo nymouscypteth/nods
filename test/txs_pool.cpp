@@ -7,6 +7,8 @@
 #define MAX_NUMBER_OF_TICKS_PER_EPOCH 50
 #undef TICKS_TO_KEEP_FROM_PRIOR_EPOCH
 #define TICKS_TO_KEEP_FROM_PRIOR_EPOCH 5
+#undef TRANSACTION_SPARSENESS
+#define TRANSACTION_SPARSENESS 4
 #include "../src/txs_pool.h"
 
 #include <random>
