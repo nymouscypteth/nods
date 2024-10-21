@@ -239,9 +239,9 @@ BroadcastFutureTickData broadcastedFutureTickData;
 
 static struct
 {
-	Transaction transaction;
-	unsigned char data[VOTE_COUNTER_DATA_SIZE_IN_BYTES];
-	unsigned char signature[SIGNATURE_SIZE];
+    Transaction transaction;
+    unsigned char data[VOTE_COUNTER_DATA_SIZE_IN_BYTES];
+    unsigned char signature[SIGNATURE_SIZE];
 } voteCounterPayload;
 
 static struct
@@ -802,7 +802,7 @@ static void processBroadcastTransaction(Peer* peer, RequestResponseHeader* heade
                 enqueueResponse(NULL, header);
             }
 
-			txsPool.update(request);
+            txsPool.update(request);
 
             unsigned int tickIndex = ts.tickToIndexCurrentEpoch(request->tick);
             ts.tickData.acquireLock();
@@ -2414,45 +2414,45 @@ static void processTick(unsigned long long processorNumber)
                     timelockPreimage[2] = etalonTick.saltedComputerDigest;
                     KangarooTwelve(timelockPreimage, sizeof(timelockPreimage), &broadcastedFutureTickData.tickData.timelock, sizeof(broadcastedFutureTickData.tickData.timelock));
 
-                    unsigned int j = 0;
-					while (j < NUMBER_OF_TRANSACTIONS_PER_TICK)
+                    unsigned int nextTxIndex = 0;
+                    for (unsigned int tx = 0; tx < NUMBER_OF_TRANSACTIONS_PER_TICK; ++tx)
                     {
 #if !defined(NDEBUG) && !defined(NO_UEFI)
                         addDebugMessage(L"txsPool.get() call in processTick()");
 #endif
-						const Transaction* pendingTransaction = txsPool.get(system.tick + TICK_TRANSACTIONS_PUBLICATION_OFFSET, j);
-						if (pendingTransaction)
+                        const Transaction* pendingTransaction = txsPool.get(system.tick + TICK_TRANSACTIONS_PUBLICATION_OFFSET, tx);
+                        if (pendingTransaction)
                         {
-							txsPool.acquireLock();
+                            txsPool.acquireLock();
                             ASSERT(pendingTransaction->checkValidity());
                             const unsigned int transactionSize = pendingTransaction->totalSize();
-                                ts.transactionsStorage.tickTransactions.acquireLock();
-                                if (ts.transactionsStorage.nextTickTransactionOffset + transactionSize <= ts.transactionsStorage.tickTransactions.storageSpaceCurrentEpoch)
-                                {
-                                    ts.transactionsStorage.tickTransactionOffsets(pendingTransaction->tick, j) = ts.transactionsStorage.nextTickTransactionOffset;
-								copyMem(ts.transactionsStorage.tickTransactions(ts.transactionsStorage.nextTickTransactionOffset), (void*)pendingTransaction, transactionSize);
-								const m256i* digest = txsPool.getDigest(system.tick + TICK_TRANSACTIONS_PUBLICATION_OFFSET, j);
-								// digest should always be != nullptr because pendingTransaction != nullptr
-								ASSERT(digest);
-								broadcastedFutureTickData.tickData.transactionDigests[j] = digest ? *digest : m256i::zero();
-                                    j++;
-                                    ts.transactionsStorage.nextTickTransactionOffset += transactionSize;
-                                }
-                                ts.transactionsStorage.tickTransactions.releaseLock();
-							txsPool.releaseLock();
+                            ts.transactionsStorage.tickTransactions.acquireLock();
+                            if (ts.transactionsStorage.nextTickTransactionOffset + transactionSize <= ts.transactionsStorage.tickTransactions.storageSpaceCurrentEpoch)
+                            {
+                                ts.transactionsStorage.tickTransactionOffsets(pendingTransaction->tick, nextTxIndex) = ts.transactionsStorage.nextTickTransactionOffset;
+                                copyMem(ts.transactionsStorage.tickTransactions(ts.transactionsStorage.nextTickTransactionOffset), (void*)pendingTransaction, transactionSize);
+                                const m256i* digest = txsPool.getDigest(system.tick + TICK_TRANSACTIONS_PUBLICATION_OFFSET, tx);
+                                // digest should always be != nullptr because pendingTransaction != nullptr
+                                ASSERT(digest);
+                                broadcastedFutureTickData.tickData.transactionDigests[nextTxIndex] = digest ? *digest : m256i::zero();
+                                ts.transactionsStorage.nextTickTransactionOffset += transactionSize;
+                                nextTxIndex++;
                             }
-						else
-                                {
-							break;
-                            }
+                            ts.transactionsStorage.tickTransactions.releaseLock();
+                            txsPool.releaseLock();
                         }
-
-                    for (; j < NUMBER_OF_TRANSACTIONS_PER_TICK; j++)
-                    {
-                        broadcastedFutureTickData.tickData.transactionDigests[j] = m256i::zero();
+                        else
+                        {
+                            break;
+                        }
                     }
 
-                    bs->SetMem(broadcastedFutureTickData.tickData.contractFees, sizeof(broadcastedFutureTickData.tickData.contractFees), 0);
+                    for (; nextTxIndex < NUMBER_OF_TRANSACTIONS_PER_TICK; ++nextTxIndex)
+                    {
+                        broadcastedFutureTickData.tickData.transactionDigests[nextTxIndex] = m256i::zero();
+                    }
+
+                    setMem(broadcastedFutureTickData.tickData.contractFees, sizeof(broadcastedFutureTickData.tickData.contractFees), 0);
 
                     unsigned char digest[32];
                     KangarooTwelve(&broadcastedFutureTickData.tickData, sizeof(TickData) - SIGNATURE_SIZE, digest, sizeof(digest));
@@ -2608,25 +2608,25 @@ static void beginEpoch()
     {
         broadcastedComputors.computors.publicKeys[i].setRandomValue();
     }
-	setMem(&broadcastedComputors.computors.signature, sizeof(broadcastedComputors.computors.signature), 0);
+    setMem(&broadcastedComputors.computors.signature, sizeof(broadcastedComputors.computors.signature), 0);
 
 #ifndef NDEBUG
-	ts.checkStateConsistencyWithAssert();
-	txsPool.checkStateConsistencyWithAssert();
+    ts.checkStateConsistencyWithAssert();
+    txsPool.checkStateConsistencyWithAssert();
 #endif
-	ts.beginEpoch(system.initialTick);
-	txsPool.beginEpoch(system.initialTick);
-	voteCounter.init();
+    ts.beginEpoch(system.initialTick);
+    txsPool.beginEpoch(system.initialTick);
+    voteCounter.init();
 #ifndef NDEBUG
-	ts.checkStateConsistencyWithAssert();
-	txsPool.checkStateConsistencyWithAssert();
+    ts.checkStateConsistencyWithAssert();
+    txsPool.checkStateConsistencyWithAssert();
 #endif
 #if ADDON_TX_STATUS_REQUEST
     beginEpochTxStatusRequestAddOn(system.initialTick);
 #endif
 
-	setMem(solutionPublicationTicks, sizeof(solutionPublicationTicks), 0);
-	setMem(faultyComputorFlags, sizeof(faultyComputorFlags), 0);
+    setMem(solutionPublicationTicks, sizeof(solutionPublicationTicks), 0);
+    setMem(faultyComputorFlags, sizeof(faultyComputorFlags), 0);
 
     SPECTRUM_FILE_NAME[sizeof(SPECTRUM_FILE_NAME) / sizeof(SPECTRUM_FILE_NAME[0]) - 4] = system.epoch / 100 + L'0';
     SPECTRUM_FILE_NAME[sizeof(SPECTRUM_FILE_NAME) / sizeof(SPECTRUM_FILE_NAME[0]) - 3] = (system.epoch % 100) / 10 + L'0';
@@ -2642,13 +2642,13 @@ static void beginEpoch()
 
     score->initMemory();
     score->resetTaskQueue();
-	setMem(minerSolutionFlags, NUMBER_OF_MINER_SOLUTION_FLAGS / 8, 0);
-	setMem((void*)minerPublicKeys, sizeof(minerPublicKeys), 0);
-	setMem((void*)minerScores, sizeof(minerScores), 0);
+    setMem(minerSolutionFlags, NUMBER_OF_MINER_SOLUTION_FLAGS / 8, 0);
+    setMem((void*)minerPublicKeys, sizeof(minerPublicKeys), 0);
+    setMem((void*)minerScores, sizeof(minerScores), 0);
     numberOfMiners = NUMBER_OF_COMPUTORS;
-	setMem(competitorPublicKeys, sizeof(competitorPublicKeys), 0);
-	setMem(competitorScores, sizeof(competitorScores), 0);
-	setMem(competitorComputorStatuses, sizeof(competitorComputorStatuses), 0);
+    setMem(competitorPublicKeys, sizeof(competitorPublicKeys), 0);
+    setMem(competitorScores, sizeof(competitorScores), 0);
+    setMem(competitorComputorStatuses, sizeof(competitorComputorStatuses), 0);
     minimumComputorScore = 0;
     minimumCandidateScore = 0;
 
@@ -2658,8 +2658,8 @@ static void beginEpoch()
 
     system.latestOperatorNonce = 0;
     system.numberOfSolutions = 0;
-	setMem(system.solutions, sizeof(system.solutions), 0);
-	setMem(system.futureComputors, sizeof(system.futureComputors), 0);
+    setMem(system.solutions, sizeof(system.solutions), 0);
+    setMem(system.futureComputors, sizeof(system.futureComputors), 0);
 
     // Reset resource testing digest at beginning of the epoch
     // there are many global variables that were init at declaration, may need to re-check all of them again
@@ -4360,7 +4360,7 @@ static bool initialize()
     {
         if (!ts.init())
             return false;
-		if (!txsPool.init())
+        if (!txsPool.init())
             return false;
 
         bs->SetMem(spectrumChangeFlags, sizeof(spectrumChangeFlags), 0);
@@ -4669,7 +4669,7 @@ static void deinitialize()
     }
 
     ts.deinit();
-	txsPool.deinit();
+    txsPool.deinit();
 
     if (score)
     {
@@ -4881,7 +4881,7 @@ static void logInfo()
         appendNumber(message, td.millisecond % 10, FALSE);
         appendText(message, L".) ");
     }
-	appendNumber(message, txsPool.getNumberOfPendingTxs(system.tick), TRUE);
+    appendNumber(message, txsPool.getNumberOfPendingTxs(system.tick), TRUE);
     appendText(message, L" pending transactions.");
     logToConsole(message);
 
