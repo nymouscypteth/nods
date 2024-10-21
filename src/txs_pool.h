@@ -137,7 +137,7 @@ public:
 		unsigned int startTick = tickEnd;
 		unsigned int oldStartTick = oldTickEnd;
 
-		if (tick < oldTickBegin)
+		if (tick < oldTickBegin || oldTickBegin == 0 && tick < tickBegin)
 		{
 			startTick = tickBegin;
 			oldStartTick = oldTickBegin;

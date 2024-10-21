@@ -10,6 +10,7 @@
 #include "../src/txs_pool.h"
 
 #include <random>
+#include <vector>
 
 
 class TestTxsPool : public TxsPool
@@ -195,38 +196,31 @@ TEST(TestTxsPool, NumberOfPendingTxs) {
         txsPool.checkStateConsistencyWithAssert();
 
         const int firstEpochTicks = gen64() % (MAX_NUMBER_OF_TICKS_PER_EPOCH + 1);
-        const int secondEpochTicks = gen64() % (MAX_NUMBER_OF_TICKS_PER_EPOCH + 1);
         const unsigned int firstEpochTick0 = gen64() % 10000000;
-        const unsigned int secondEpochTick0 = firstEpochTick0 + firstEpochTicks;
         unsigned long long firstEpochSeeds[MAX_NUMBER_OF_TICKS_PER_EPOCH];
-        unsigned long long secondEpochSeeds[MAX_NUMBER_OF_TICKS_PER_EPOCH];
         for (int i = 0; i < firstEpochTicks; ++i)
             firstEpochSeeds[i] = gen64();
-        for (int i = 0; i < secondEpochTicks; ++i)
-            secondEpochSeeds[i] = gen64();
 
         // first epoch
         txsPool.beginEpoch(firstEpochTick0);
 
         // add ticks transactions
         std::vector<unsigned short> numTransactionsAdded(firstEpochTicks);
-        for (int i = 0; i < firstEpochTicks; ++i)
+        std::vector<unsigned short> numPendingTransactions(firstEpochTicks, 0);
+        for (int i = firstEpochTicks - 1; i >= 0; --i)
+        {
             addTickTransactions(firstEpochTick0 + i, firstEpochSeeds[i], maxTransactions, &numTransactionsAdded[i]);
+            if (i > 0)
+            {
+                numPendingTransactions[i - 1] = numPendingTransactions[i] + numTransactionsAdded[i];
+            }
+        }
 
-        // TODO:
-        txsPool.getNumberOfPendingTxs(firstEpochTick0 - 1);
-
-
-
-        // Epoch transistion
-        txsPool.beginEpoch(secondEpochTick0);
-
-        // add ticks transactions
-        for (int i = 0; i < secondEpochTicks; ++i)
-            addTickTransactions(secondEpochTick0 + i, secondEpochSeeds[i], maxTransactions);
-
-
-
+        EXPECT_EQ(txsPool.getNumberOfPendingTxs(firstEpochTick0 - 1), (unsigned int)numTransactionsAdded[0] + numPendingTransactions[0]);
+        for (int i = 0; i < firstEpochTicks; ++i)
+        {
+            EXPECT_EQ(txsPool.getNumberOfPendingTxs(firstEpochTick0 + i), (unsigned int)numPendingTransactions[i]);
+        }
 
         txsPool.deinit();
     }
