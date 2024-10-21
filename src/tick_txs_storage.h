@@ -196,7 +196,7 @@ public:
                 copyMem(oldTickTransactionsPtr, tickTransactionsPtr + firstToKeepOffset, keepTransactionSizesSum);
 
                 // adjust offsets (based on end of transactions)
-                const unsigned long long offsetDelta = (tickTransactionsSizeCurrentEpoch + keepTransactionSizesSum) - nextTickTransactionOffset;
+                const unsigned long long offsetDelta = tickTransactionsSizeCurrentEpoch - firstToKeepOffset;
                 for (unsigned int tickId = oldTickBegin; tickId < oldTickEnd; ++tickId)
                 {
                     const unsigned long long* tickOffsets = tickTransactionOffsets.getByTickInCurrentEpoch(tickId);

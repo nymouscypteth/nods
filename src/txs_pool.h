@@ -308,6 +308,8 @@ public:
 #if !defined(NDEBUG) && !defined(NO_UEFI)
 		addDebugMessage(L"Begin txsPool.beginEpoch()");
 #endif
+		transactionsStorage.beginEpoch(newInitialTick);
+
 		if (tickBegin && tickInCurrentEpochStorage(newInitialTick) && tickBegin < newInitialTick)
 		{
 			// seamless epoch transition: keep some ticks of prior epoch
@@ -324,6 +326,42 @@ public:
 
 			setMem(txsDigestsPtr, txsDigestsSizeCurrentEpoch, 0);
 			setMem(numSavedTxsPerTick, MAX_NUMBER_OF_TICKS_PER_EPOCH * sizeof(numSavedTxsPerTick[0]), 0);
+
+			// Some txs from previous epoch might not have fit into prev epoch memory, check and adjust numSavedTxsPerTick accordingly.
+			// Additionally move offsets and digests s.t. there are no empty entries at the beginning of the array storage for each tick.
+			for (unsigned int t = oldTickBegin; t < oldTickEnd; ++t)
+			{
+				unsigned int index = tickToIndexPreviousEpoch(t);
+				unsigned long long* offsets = transactionsStorage.tickTransactionOffsets.getByTickIndex(index);
+				m256i* digests = &txsDigestsPtr[index * NUMBER_OF_TRANSACTIONS_PER_TICK];
+				if (numSavedTxsPerTick[index])
+				{
+					int firstNonZero = -1;
+					for (int tx = 0; tx < NUMBER_OF_TRANSACTIONS_PER_TICK; ++tx)
+					{
+						if (offsets[tx])
+						{
+							firstNonZero = tx;
+							break;
+						}
+					}
+					if (firstNonZero < 0)
+					{
+						numSavedTxsPerTick[index] = 0;
+					}
+					else if (firstNonZero > 0)
+					{
+						numSavedTxsPerTick[index] -= firstNonZero;
+						for (unsigned int tx = 0; tx < numSavedTxsPerTick[index]; ++tx)
+						{
+							offsets[tx] = offsets[tx + firstNonZero];
+							digests[tx] = digests[tx + firstNonZero];
+						}
+						setMem(&offsets[numSavedTxsPerTick[index]], firstNonZero * sizeof(unsigned long long), 0);
+						setMem(&digests[numSavedTxsPerTick[index]], firstNonZero * sizeof(m256i), 0);
+					}
+				}
+			}
 		}
 		else
 		{
@@ -337,8 +375,6 @@ public:
 
 		tickBegin = newInitialTick;
 		tickEnd = newInitialTick + MAX_NUMBER_OF_TICKS_PER_EPOCH;
-
-		transactionsStorage.beginEpoch(newInitialTick);
 
 #if !defined(NDEBUG) && !defined(NO_UEFI)
 		addDebugMessage(L"End txsPool.beginEpoch()");

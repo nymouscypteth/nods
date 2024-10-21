@@ -80,7 +80,11 @@ void checkTickTransactions(unsigned int tick, unsigned long long seed, unsigned 
 
             EXPECT_TRUE(tp->checkValidity());
             EXPECT_EQ(tp->tick, tick);
-            EXPECT_EQ((int)tp->inputSize, expectedInputSize);
+            if (!previousEpoch)
+            {
+                // in previous epoch, if transactions at the beginning were cut the expectedInputSize will noch match anymore
+                EXPECT_EQ((int)tp->inputSize, expectedInputSize);
+            }
 
             m256i* digest = txsPool.getDigest(tick, transaction);
 
