@@ -2415,7 +2415,8 @@ static void processTick(unsigned long long processorNumber)
                     KangarooTwelve(timelockPreimage, sizeof(timelockPreimage), &broadcastedFutureTickData.tickData.timelock, sizeof(broadcastedFutureTickData.tickData.timelock));
 
                     unsigned int nextTxIndex = 0;
-                    for (unsigned int tx = 0; tx < NUMBER_OF_TRANSACTIONS_PER_TICK; ++tx)
+                    unsigned int numTickTxs = txsPool.getNumberOfTickTxs(system.tick + TICK_TRANSACTIONS_PUBLICATION_OFFSET);
+                    for (unsigned int tx = 0; tx < numTickTxs; ++tx)
                     {
 #if !defined(NDEBUG) && !defined(NO_UEFI)
                         addDebugMessage(L"txsPool.get() call in processTick()");

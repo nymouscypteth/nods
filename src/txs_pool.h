@@ -120,16 +120,36 @@ public:
         return tick - oldTickBegin + MAX_NUMBER_OF_TICKS_PER_EPOCH;
     }
 
-	// Return number of transactions scheduled for the specified tick.
-	static unsigned int getNumberOfTickTxs(unsigned int tick)
-	{
-		// TODO: implement this
-		return 0;
-	}
+    // Return number of transactions scheduled for the specified tick.
+    static unsigned int getNumberOfTickTxs(unsigned int tick)
+    {
+#if !defined(NDEBUG) && !defined(NO_UEFI)
+        addDebugMessage(L"Begin txsPool.getNumberOfTickTxs()");
+#endif
+        unsigned int res = 0;
+        ACQUIRE(numSavedLock);
+        if (tickInPreviousEpochStorage(tick))
+        {
+            res = numSavedTxsPerTick[tickToIndexPreviousEpoch(tick)];
+        }
+        else if (tickInCurrentEpochStorage(tick))
+        {
+            res = numSavedTxsPerTick[tickToIndexCurrentEpoch(tick)];
+        }
+        RELEASE(numSavedLock);
 
-	// Return number of transactions scheduled later than the specified tick.
-	static unsigned int getNumberOfPendingTxs(unsigned int tick)
-	{
+#if !defined(NDEBUG) && !defined(NO_UEFI)
+        CHAR16 dbgMsgBuf[200];
+        setText(dbgMsgBuf, L"End txsPool.getNumberOfTickTxs(), res=");
+        appendNumber(dbgMsgBuf, res, FALSE);
+        addDebugMessage(dbgMsgBuf);
+#endif
+        return res;
+    }
+
+    // Return number of transactions scheduled later than the specified tick.
+    static unsigned int getNumberOfPendingTxs(unsigned int tick)
+    {
 #if !defined(NDEBUG) && !defined(NO_UEFI)
         addDebugMessage(L"Begin txsPool.getNumberOfPendingTxs()");
 #endif

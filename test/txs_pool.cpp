@@ -231,3 +231,45 @@ TEST(TestTxsPool, NumberOfPendingTxs) {
         txsPool.deinit();
     }
 }
+
+TEST(TestTxsPool, NumberOfTickTxs) {
+
+    unsigned long long seed = 67534;
+
+    // use pseudo-random sequence
+    std::mt19937_64 gen64(seed);
+
+    // 5x test with running 1 epoch transitions
+    for (int testIdx = 0; testIdx < 6; ++testIdx)
+    {
+        // first, test case of having no transactions
+        unsigned short maxTransactions = (testIdx == 0) ? 0 : NUMBER_OF_TRANSACTIONS_PER_TICK;
+
+        txsPool.init();
+        txsPool.checkStateConsistencyWithAssert();
+
+        const int firstEpochTicks = gen64() % (MAX_NUMBER_OF_TICKS_PER_EPOCH + 1);
+        const unsigned int firstEpochTick0 = gen64() % 10000000;
+        unsigned long long firstEpochSeeds[MAX_NUMBER_OF_TICKS_PER_EPOCH];
+        for (int i = 0; i < firstEpochTicks; ++i)
+            firstEpochSeeds[i] = gen64();
+
+        // first epoch
+        txsPool.beginEpoch(firstEpochTick0);
+
+        // add ticks transactions
+        std::vector<unsigned short> numTransactionsAdded(firstEpochTicks);
+        for (int i = firstEpochTicks - 1; i >= 0; --i)
+        {
+            addTickTransactions(firstEpochTick0 + i, firstEpochSeeds[i], maxTransactions, &numTransactionsAdded[i]);
+        }
+
+        EXPECT_EQ(txsPool.getNumberOfTickTxs(firstEpochTick0 - 1), 0);
+        for (int i = 0; i < firstEpochTicks; ++i)
+        {
+            EXPECT_EQ(txsPool.getNumberOfTickTxs(firstEpochTick0 + i), (unsigned int)numTransactionsAdded[i]);
+        }
+
+        txsPool.deinit();
+    }
+}
